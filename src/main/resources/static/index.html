@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ExamenMicroservicios — Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --border:    #30363d;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --primary:   #58a6ff;
+      --success:   #3fb950;
+      --warning:   #d29922;
+      --danger:    #f85149;
+      --sidebar-w: 220px;
+    }
+
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+           background: var(--bg); color: var(--text); display: flex; height: 100vh; }
+
+    /* ── Sidebar ─────────────────────────────────────────────────── */
+    aside {
+      width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; flex-shrink: 0;
+    }
+    .brand {
+      padding: 20px 16px 16px; font-size: 13px; color: var(--muted);
+      border-bottom: 1px solid var(--border); line-height: 1.5;
+    }
+    .brand strong { display: block; font-size: 15px; color: var(--text); margin-bottom: 2px; }
+    nav { flex: 1; padding: 12px 0; }
+    nav button {
+      display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 16px;
+      background: none; border: none; color: var(--muted); font-size: 14px; cursor: pointer;
+      text-align: left; border-radius: 0; transition: background .15s, color .15s;
+    }
+    nav button:hover { background: rgba(255,255,255,.05); color: var(--text); }
+    nav button.active { background: rgba(88,166,255,.12); color: var(--primary); font-weight: 600; }
+    nav button .icon { font-size: 16px; width: 20px; text-align: center; }
+    .sidebar-status { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 5px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .dot.up   { background: var(--success); box-shadow: 0 0 5px var(--success); }
+    .dot.down { background: var(--danger); }
+    .dot.unknown { background: var(--warning); }
+    .svc-status { font-size: 11px; color: var(--muted); display: flex; align-items: center; }
+
+    /* ── Main ────────────────────────────────────────────────────── */
+    main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    header {
+      padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--surface);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    header h1 { font-size: 18px; font-weight: 600; }
+    header span { font-size: 12px; color: var(--muted); }
+    .content { flex: 1; overflow-y: auto; padding: 24px; }
+
+    /* ── Panels ──────────────────────────────────────────────────── */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ── Cards ───────────────────────────────────────────────────── */
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 28px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 16px; display: flex; flex-direction: column; gap: 8px;
+    }
+    .card-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+    .card-value { font-size: 22px; font-weight: 700; }
+    .card-value.up   { color: var(--success); }
+    .card-value.down { color: var(--danger); }
+    .card-value.unk  { color: var(--warning); }
+    .card-sub { font-size: 11px; color: var(--muted); }
+
+    /* ── Section ─────────────────────────────────────────────────── */
+    .section-title {
+      font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 14px;
+      padding-bottom: 8px; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: .06em;
+    }
+    .section { margin-bottom: 32px; }
+
+    /* ── Form ────────────────────────────────────────────────────── */
+    .form-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 18px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group label { font-size: 12px; color: var(--muted); }
+    input, textarea {
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+      padding: 8px 10px; border-radius: 6px; font-size: 13px; outline: none;
+      transition: border-color .15s;
+    }
+    input:focus, textarea:focus { border-color: var(--primary); }
+    input { min-width: 160px; }
+
+    /* ── Buttons ─────────────────────────────────────────────────── */
+    .btn {
+      padding: 8px 16px; border-radius: 6px; border: none; font-size: 13px;
+      cursor: pointer; font-weight: 500; transition: opacity .15s;
+    }
+    .btn:hover { opacity: .82; }
+    .btn-primary { background: var(--primary); color: #0d1117; }
+    .btn-success { background: var(--success); color: #0d1117; }
+    .btn-danger  { background: var(--danger);  color: #fff; }
+    .btn-ghost   { background: rgba(255,255,255,.07); color: var(--text); }
+    .btn-sm      { padding: 4px 10px; font-size: 12px; }
+
+    /* ── Table ───────────────────────────────────────────────────── */
+    .tbl-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th {
+      background: var(--surface); padding: 10px 14px; text-align: left;
+      color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody tr:hover { background: rgba(255,255,255,.03); }
+    tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text); word-break: break-all; }
+    tbody tr:last-child td { border-bottom: none; }
+    .empty { text-align: center; color: var(--muted); padding: 30px; }
+
+    /* ── Badge ───────────────────────────────────────────────────── */
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 20px;
+      font-size: 11px; font-weight: 600;
+    }
+    .badge-green { background: rgba(63,185,80,.2);  color: var(--success); }
+    .badge-blue  { background: rgba(88,166,255,.2); color: var(--primary); }
+    .badge-red   { background: rgba(248,81,73,.2);  color: var(--danger); }
+    .badge-yellow{ background: rgba(210,153,34,.2); color: var(--warning); }
+
+    /* ── Toast ───────────────────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 999;
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 12px 18px; border-radius: 8px; font-size: 13px;
+      box-shadow: 0 4px 20px rgba(0,0,0,.5); opacity: 0; transition: opacity .25s;
+      pointer-events: none; max-width: 340px;
+    }
+    #toast.show { opacity: 1; }
+    #toast.ok  { border-left: 3px solid var(--success); }
+    #toast.err { border-left: 3px solid var(--danger); }
+
+    /* ── Log browser ─────────────────────────────────────────────── */
+    .log-layout { display: grid; grid-template-columns: 220px 220px 1fr; gap: 14px; min-height: 400px; }
+    .log-pane {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .log-pane-title {
+      padding: 10px 14px; font-size: 12px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .log-list { flex: 1; overflow-y: auto; }
+    .log-item {
+      padding: 9px 14px; font-size: 12px; cursor: pointer; border-bottom: 1px solid rgba(48,54,61,.5);
+      display: flex; align-items: center; gap: 8px; transition: background .1s;
+      word-break: break-all;
+    }
+    .log-item:hover { background: rgba(255,255,255,.05); }
+    .log-item.selected { background: rgba(88,166,255,.12); color: var(--primary); }
+    .log-item .icon { flex-shrink: 0; }
+    .log-events { flex: 1; overflow-y: auto; padding: 12px; font-family: "SF Mono", monospace; font-size: 12px; max-height: 420px; }
+    .log-event { padding: 4px 0; border-bottom: 1px solid rgba(48,54,61,.4); display: flex; gap: 12px; }
+    .log-ts { color: var(--muted); flex-shrink: 0; }
+    .log-msg { color: var(--text); word-break: break-all; }
+
+    /* ── Spinner ─────────────────────────────────────────────────── */
+    .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border);
+            border-top-color: var(--primary); border-radius: 50%; animation: spin .6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Response box ────────────────────────────────────────────── */
+    pre.response {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+      padding: 14px; font-size: 12px; font-family: "SF Mono", monospace;
+      max-height: 260px; overflow-y: auto; color: var(--text); white-space: pre-wrap;
+      word-break: break-all; margin-top: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Sidebar ─────────────────────────────────────────────────────────────── -->
+<aside>
+  <div class="brand">
+    <strong>ExamenMicroservicios</strong>
+    Spring Cloud · API Gateway
+  </div>
+  <nav>
+    <button class="active" onclick="show('dashboard', this)">
+      <span class="icon">🏠</span> Dashboard
+    </button>
+    <button onclick="show('productos', this)">
+      <span class="icon">📦</span> Productos
+    </button>
+    <button onclick="show('ordenes', this)">
+      <span class="icon">📋</span> Órdenes
+    </button>
+    <button onclick="show('pagos', this)">
+      <span class="icon">💳</span> Pagos
+    </button>
+    <button onclick="show('cloudwatch', this)">
+      <span class="icon">📊</span> CloudWatch
+    </button>
+  </nav>
+  <div class="sidebar-status" id="sidebarStatus">
+    <div style="font-size:11px; color:var(--muted); margin-bottom:4px; font-weight:600;">SERVICIOS</div>
+    <div class="svc-status"><span class="dot unknown" id="dot-eureka"></span> eureka-server</div>
+    <div class="svc-status"><span class="dot unknown" id="dot-productos"></span> productos</div>
+    <div class="svc-status"><span class="dot unknown" id="dot-ordenes"></span> ordenes</div>
+    <div class="svc-status"><span class="dot unknown" id="dot-pagos"></span> pagos</div>
+    <div class="svc-status"><span class="dot unknown" id="dot-localstack"></span> localstack</div>
+  </div>
+</aside>
+
+<!-- ── Main ───────────────────────────────────────────────────────────────── -->
+<main>
+  <header>
+    <h1 id="pageTitle">Dashboard</h1>
+    <span id="pageUrl">http://localhost:8080</span>
+  </header>
+  <div class="content">
+
+    <!-- ── DASHBOARD ───────────────────────────────────────────────────────── -->
+    <div class="panel active" id="panel-dashboard">
+      <div class="section">
+        <div class="section-title">Estado de Servicios
+          <button class="btn btn-ghost btn-sm" style="float:right;margin-top:-4px" onclick="loadHealth()">↺ Refresh</button>
+        </div>
+        <div class="cards" id="healthCards">
+          <div class="card"><div class="card-title">Cargando...</div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Ping rápido</div>
+        <div class="form-row">
+          <button class="btn btn-ghost" onclick="quickPing('productos')">📦 Ping Productos</button>
+          <button class="btn btn-ghost" onclick="quickPing('ordenes')">📋 Ping Órdenes</button>
+          <button class="btn btn-ghost" onclick="quickPing('pagos')">💳 Ping Pagos</button>
+          <button class="btn btn-primary" onclick="loadHealth()">🔄 Check Health</button>
+          <a href="http://localhost:8761" target="_blank" class="btn btn-ghost">🌐 Eureka UI</a>
+        </div>
+        <pre class="response" id="pingResponse">// Los resultados aparecen aquí</pre>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Gateway Routes</div>
+        <button class="btn btn-ghost btn-sm" onclick="loadRoutes()">Ver rutas activas</button>
+        <pre class="response" id="routesResponse">// Haz clic en "Ver rutas activas"</pre>
+      </div>
+    </div>
+
+    <!-- ── PRODUCTOS ───────────────────────────────────────────────────────── -->
+    <div class="panel" id="panel-productos">
+      <div class="section">
+        <div class="section-title">Crear Producto</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nombre</label>
+            <input id="p-nombre" placeholder="Laptop" />
+          </div>
+          <div class="form-group">
+            <label>Precio</label>
+            <input id="p-precio" type="number" step="0.01" placeholder="999.99" style="min-width:120px" />
+          </div>
+          <button class="btn btn-success" onclick="crearProducto()">＋ Crear</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Lista de Productos
+          <button class="btn btn-ghost btn-sm" style="float:right;margin-top:-4px" onclick="cargarProductos()">↺ Refresh</button>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>Nombre</th><th>Precio</th><th></th></tr></thead>
+            <tbody id="tbl-productos"><tr><td colspan="4" class="empty">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Buscar por ID</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>ID</label>
+            <input id="p-search-id" placeholder="ObjectId" style="min-width:260px"/>
+          </div>
+          <button class="btn btn-primary" onclick="buscarProducto()">Buscar</button>
+        </div>
+        <pre class="response" id="productoResponse">// Resultado aquí</pre>
+      </div>
+    </div>
+
+    <!-- ── ORDENES ────────────────────────────────────────────────────────── -->
+    <div class="panel" id="panel-ordenes">
+      <div class="section">
+        <div class="section-title">Crear Orden</div>
+
+        <!-- Usuario -->
+        <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Usuario</div>
+        <div class="form-row" style="margin-bottom:12px">
+          <div class="form-group">
+            <label>User ID (auto)</label>
+            <input id="o-userId" readonly style="background:var(--surface);min-width:110px;color:var(--muted)"/>
+          </div>
+          <div class="form-group">
+            <label>Username</label>
+            <input id="o-username" placeholder="john_doe" style="min-width:150px"/>
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input id="o-email" type="email" placeholder="john@mail.com" style="min-width:200px"/>
+          </div>
+          <div class="form-group">
+            <label>Teléfono</label>
+            <input id="o-phone" placeholder="+52 55 1234 5678" style="min-width:160px"/>
+          </div>
+        </div>
+
+        <!-- Productos -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Productos</div>
+          <button class="btn btn-ghost btn-sm" onclick="agregarLineaProducto()">＋ Agregar producto</button>
+        </div>
+        <div id="o-productos-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+
+        <div style="display:flex;align-items:center;gap:12px">
+          <button class="btn btn-success" onclick="crearOrden()">＋ Crear Orden</button>
+          <span style="font-size:12px;color:var(--muted)">⚠ Los Producto IDs deben existir en productos-service.</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Lista de Órdenes
+          <button class="btn btn-ghost btn-sm" style="float:right;margin-top:-4px" onclick="cargarOrdenes()">↺ Refresh</button>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>ID Orden</th><th>Usuario</th><th>Contacto</th><th>Productos</th><th>Status</th></tr></thead>
+            <tbody id="tbl-ordenes"><tr><td colspan="5" class="empty">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Raw Response</div>
+        <pre class="response" id="ordenResponse">// Resultado aquí</pre>
+      </div>
+    </div>
+
+    <!-- ── PAGOS ─────────────────────────────────────────────────────────── -->
+    <div class="panel" id="panel-pagos">
+      <div class="section">
+        <div class="section-title">Registrar Pago</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Orden ID</label>
+            <input id="pg-ordenId" placeholder="ObjectId de la orden" style="min-width:260px"/>
+          </div>
+          <div class="form-group">
+            <label>Monto</label>
+            <input id="pg-monto" type="number" step="0.01" placeholder="100.00" style="min-width:120px"/>
+          </div>
+          <button class="btn btn-success" onclick="crearPago()">＋ Registrar</button>
+        </div>
+        <div style="font-size:12px; color:var(--muted); margin-top:-8px; margin-bottom:12px;">
+          ⚠ Valida que el Orden ID exista en ordenes-service antes de guardar.
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Lista de Pagos
+          <button class="btn btn-ghost btn-sm" style="float:right;margin-top:-4px" onclick="cargarPagos()">↺ Refresh</button>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>Orden ID</th><th>Monto</th><th>Status</th></tr></thead>
+            <tbody id="tbl-pagos"><tr><td colspan="4" class="empty">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Raw Response</div>
+        <pre class="response" id="pagoResponse">// Resultado aquí</pre>
+      </div>
+    </div>
+
+    <!-- ── CLOUDWATCH ─────────────────────────────────────────────────────── -->
+    <div class="panel" id="panel-cloudwatch">
+      <div class="section">
+        <div class="section-title">CloudWatch Logs — LocalStack
+          <button class="btn btn-ghost btn-sm" style="float:right;margin-top:-4px" onclick="loadGroups()">↺ Refresh</button>
+        </div>
+        <div class="log-layout">
+          <!-- Groups -->
+          <div class="log-pane">
+            <div class="log-pane-title">Log Groups</div>
+            <div class="log-list" id="cwGroups">
+              <div class="log-item" style="color:var(--muted)">Cargando...</div>
+            </div>
+          </div>
+          <!-- Streams -->
+          <div class="log-pane">
+            <div class="log-pane-title">
+              Log Streams
+              <button class="btn btn-ghost btn-sm" id="btnNewStream" onclick="showStreamForm()" style="display:none">＋</button>
+            </div>
+            <div class="log-list" id="cwStreams">
+              <div class="log-item" style="color:var(--muted)">← Selecciona un grupo</div>
+            </div>
+          </div>
+          <!-- Events -->
+          <div class="log-pane">
+            <div class="log-pane-title">
+              Log Events
+              <button class="btn btn-ghost btn-sm" id="btnNewEvent" onclick="showEventForm()" style="display:none">＋ Enviar log</button>
+            </div>
+            <div class="log-events" id="cwEvents">
+              <div style="color:var(--muted); padding:10px 0">← Selecciona un stream</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Create stream form -->
+      <div class="section" id="streamForm" style="display:none">
+        <div class="section-title">Crear Log Stream</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Group</label>
+            <input id="cw-group-new" readonly style="background:var(--surface);min-width:200px"/>
+          </div>
+          <div class="form-group">
+            <label>Stream name</label>
+            <input id="cw-stream-new" placeholder="my-stream"/>
+          </div>
+          <button class="btn btn-primary" onclick="createStream()">Crear</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('streamForm').style.display='none'">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- Send log event form -->
+      <div class="section" id="eventForm" style="display:none">
+        <div class="section-title">Enviar Log Event</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Group</label>
+            <input id="cw-ev-group" readonly style="background:var(--surface);min-width:200px"/>
+          </div>
+          <div class="form-group">
+            <label>Stream</label>
+            <input id="cw-ev-stream" readonly style="background:var(--surface);min-width:200px"/>
+          </div>
+          <div class="form-group" style="flex:1">
+            <label>Mensaje</label>
+            <input id="cw-ev-msg" placeholder="Log message..." style="width:100%;min-width:240px"/>
+          </div>
+          <button class="btn btn-primary" onclick="sendEvent()">Enviar</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('eventForm').style.display='none'">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+<div id="toast"></div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let cwSelectedGroup = null;
+let cwSelectedStream = null;
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+function show(panelId, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + panelId).classList.add('active');
+  btn.classList.add('active');
+  const titles = { dashboard:'Dashboard', productos:'Productos', ordenes:'Órdenes', pagos:'Pagos', cloudwatch:'CloudWatch Logs' };
+  document.getElementById('pageTitle').textContent = titles[panelId];
+  if (panelId === 'dashboard')   loadHealth();
+  if (panelId === 'productos')   cargarProductos();
+  if (panelId === 'ordenes')     { cargarOrdenes(); generarUserId(); agregarLineaProducto(); }
+  if (panelId === 'pagos')       cargarPagos();
+  if (panelId === 'cloudwatch')  loadGroups();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, ok = true) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'show ' + (ok ? 'ok' : 'err');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = '', 3000);
+}
+
+// ── API helpers ───────────────────────────────────────────────────────────────
+async function api(method, url, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(url, opts);
+  const text = await r.text();
+  try { return { ok: r.ok, status: r.status, data: JSON.parse(text) }; }
+  catch { return { ok: r.ok, status: r.status, data: text }; }
+}
+
+function fmt(obj) { return JSON.stringify(obj, null, 2); }
+
+// ── Health ────────────────────────────────────────────────────────────────────
+async function loadHealth() {
+  const { data } = await api('GET', '/api/health');
+  const services = [
+    { key: 'eureka-server',     label: 'Eureka Server',     port: 8761 },
+    { key: 'productos-service', label: 'Productos',         port: 8081 },
+    { key: 'ordenes-service',   label: 'Órdenes',           port: 8082 },
+    { key: 'pagos-service',     label: 'Pagos',             port: 8083 },
+    { key: 'localstack',        label: 'LocalStack',        port: 4566 },
+  ];
+  const dotMap = {
+    'eureka-server': 'dot-eureka', 'productos-service': 'dot-productos',
+    'ordenes-service': 'dot-ordenes', 'pagos-service': 'dot-pagos', 'localstack': 'dot-localstack'
+  };
+  let html = '';
+  services.forEach(s => {
+    const info = data[s.key] || {};
+    const st = (info.status || 'UNKNOWN').toUpperCase();
+    const cls = st === 'UP' ? 'up' : st === 'DOWN' ? 'down' : 'unk';
+    html += `<div class="card">
+      <div class="card-title">${s.label}</div>
+      <div class="card-value ${cls}">${st}</div>
+      <div class="card-sub">:${s.port}</div>
+    </div>`;
+    const dot = document.getElementById(dotMap[s.key]);
+    if (dot) dot.className = 'dot ' + cls;
+  });
+  document.getElementById('healthCards').innerHTML = html;
+}
+
+async function quickPing(svc) {
+  const { data, status } = await api('GET', `/${svc}/ping`);
+  document.getElementById('pingResponse').textContent = `// ${svc} → HTTP ${status}\n` + fmt(data);
+}
+
+async function loadRoutes() {
+  const { data } = await api('GET', '/actuator/gateway/routes');
+  document.getElementById('routesResponse').textContent = fmt(data);
+}
+
+// ── Productos ─────────────────────────────────────────────────────────────────
+async function cargarProductos() {
+  const { data } = await api('GET', '/productos');
+  const rows = Array.isArray(data) ? data : [];
+  const tbody = document.getElementById('tbl-productos');
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty">Sin productos</td></tr>'; return; }
+  tbody.innerHTML = rows.map(p => `
+    <tr>
+      <td><code style="font-size:11px">${p.id}</code>
+        <button onclick="copyId('${p.id}')" title="Copiar ID" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;">⎘</button>
+      </td>
+      <td>${p.nombre}</td>
+      <td>$${Number(p.precio).toFixed(2)}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="eliminarProducto('${p.id}')">Eliminar</button></td>
+    </tr>`).join('');
+}
+
+async function crearProducto() {
+  const nombre = document.getElementById('p-nombre').value.trim();
+  const precio = parseFloat(document.getElementById('p-precio').value);
+  if (!nombre || isNaN(precio)) { toast('Completa nombre y precio', false); return; }
+  const { ok, data } = await api('POST', '/productos', { nombre, precio });
+  if (ok) { toast('Producto creado ✓'); cargarProductos(); document.getElementById('p-nombre').value=''; document.getElementById('p-precio').value=''; }
+  else toast(data?.message || 'Error al crear', false);
+}
+
+async function eliminarProducto(id) {
+  if (!confirm('¿Eliminar producto ' + id + '?')) return;
+  const { ok } = await api('DELETE', '/productos/' + id);
+  if (ok) { toast('Eliminado ✓'); cargarProductos(); }
+  else toast('Error al eliminar', false);
+}
+
+async function buscarProducto() {
+  const id = document.getElementById('p-search-id').value.trim();
+  if (!id) { toast('Ingresa un ID', false); return; }
+  const { data, status } = await api('GET', '/productos/' + id);
+  document.getElementById('productoResponse').textContent = `// HTTP ${status}\n` + fmt(data);
+}
+
+// ── Ordenes ───────────────────────────────────────────────────────────────────
+function generarUserId() {
+  // Genera un número aleatorio de 6 dígitos cada vez que se abre el panel o se resetea el form
+  const uid = Math.floor(100000 + Math.random() * 900000);
+  document.getElementById('o-userId').value = uid;
+}
+
+async function cargarOrdenes() {
+  const { data } = await api('GET', '/ordenes');
+  const rows = Array.isArray(data) ? data : [];
+  const tbody = document.getElementById('tbl-ordenes');
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">Sin órdenes</td></tr>'; return; }
+  tbody.innerHTML = rows.map(o => {
+    const prods = Array.isArray(o.productos)
+      ? o.productos.map(p => `<div style="font-size:11px"><code>${p.productoId}</code> × ${p.cantidad}</div>`).join('')
+      : `<code style="font-size:11px">${o.productoId || '-'}</code>`;
+    return `
+    <tr>
+      <td><code style="font-size:11px">${o.id}</code>
+        <button onclick="copyId('${o.id}')" title="Copiar ID" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;">⎘</button>
+      </td>
+      <td><div style="font-size:12px;font-weight:600">${o.username || '-'}</div><div style="font-size:11px;color:var(--muted)">ID: ${o.userId || '-'}</div></td>
+      <td><div style="font-size:11px">${o.email || ''}</div><div style="font-size:11px;color:var(--muted)">${o.phone || ''}</div></td>
+      <td>${prods}</td>
+      <td><span class="badge badge-blue">${o.status}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+let lineaCount = 0;
+function agregarLineaProducto() {
+  const list = document.getElementById('o-productos-list');
+  const id = lineaCount++;
+  const row = document.createElement('div');
+  row.id = `linea-${id}`;
+  row.style.cssText = 'display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 12px';
+  row.innerHTML = `
+    <div class="form-group" style="margin:0;flex:1">
+      <label style="font-size:11px">Producto ID</label>
+      <input class="linea-pid" placeholder="ObjectId" style="min-width:200px"/>
+    </div>
+    <div class="form-group" style="margin:0;width:90px">
+      <label style="font-size:11px">Cantidad</label>
+      <input class="linea-qty" type="number" min="1" value="1" style="width:80px"/>
+    </div>
+    <button onclick="document.getElementById('linea-${id}').remove()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:18px;padding:0 4px;align-self:flex-end;margin-bottom:2px" title="Eliminar">✕</button>`;
+  list.appendChild(row);
+}
+
+async function crearOrden() {
+  const userId   = parseInt(document.getElementById('o-userId').value);
+  const username = document.getElementById('o-username').value.trim();
+  const email    = document.getElementById('o-email').value.trim();
+  const phone    = document.getElementById('o-phone').value.trim();
+
+  const lineas = [...document.querySelectorAll('#o-productos-list > div')];
+  if (!lineas.length) { toast('Agrega al menos un producto', false); return; }
+
+  const productos = lineas.map(row => ({
+    productoId: row.querySelector('.linea-pid').value.trim(),
+    cantidad:   parseInt(row.querySelector('.linea-qty').value) || 1
+  }));
+
+  if (productos.some(p => !p.productoId)) { toast('Completa todos los Producto IDs', false); return; }
+  if (!username) { toast('El username es obligatorio', false); return; }
+
+  const body = { userId, username, email, phone, productos };
+  const { ok, data, status } = await api('POST', '/ordenes', body);
+  document.getElementById('ordenResponse').textContent = `// HTTP ${status}\n` + fmt(data);
+  if (ok) {
+    toast('Orden creada ✓');
+    // Reset form
+    document.getElementById('o-productos-list').innerHTML = '';
+    document.getElementById('o-username').value = '';
+    document.getElementById('o-email').value = '';
+    document.getElementById('o-phone').value = '';
+    generarUserId();
+    cargarOrdenes();
+  } else toast(data?.error || 'Error al crear orden', false);
+}
+
+// ── Pagos ─────────────────────────────────────────────────────────────────────
+async function cargarPagos() {
+  const { data } = await api('GET', '/pagos');
+  const rows = Array.isArray(data) ? data : [];
+  const tbody = document.getElementById('tbl-pagos');
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty">Sin pagos</td></tr>'; return; }
+  tbody.innerHTML = rows.map(p => `
+    <tr>
+      <td><code style="font-size:11px">${p.id}</code>
+        <button onclick="copyId('${p.id}')" title="Copiar ID" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;">⎘</button>
+      </td>
+      <td><code style="font-size:11px">${p.ordenId}</code></td>
+      <td>$${Number(p.monto).toFixed(2)}</td>
+      <td><span class="badge badge-green">${p.status}</span></td>
+    </tr>`).join('');
+}
+
+async function crearPago() {
+  const ordenId = document.getElementById('pg-ordenId').value.trim();
+  const monto = parseFloat(document.getElementById('pg-monto').value);
+  if (!ordenId || isNaN(monto)) { toast('Completa ordenId y monto', false); return; }
+  const { ok, data, status } = await api('POST', '/pagos', { ordenId, monto });
+  document.getElementById('pagoResponse').textContent = `// HTTP ${status}\n` + fmt(data);
+  if (ok) { toast('Pago registrado ✓'); cargarPagos(); }
+  else toast(data?.error || 'Error al registrar pago', false);
+}
+
+// ── CloudWatch ────────────────────────────────────────────────────────────────
+async function loadGroups() {
+  const { data } = await api('GET', '/api/logs/groups');
+  const groups = data?.logGroups || [];
+  const c = document.getElementById('cwGroups');
+  if (!groups.length) { c.innerHTML = '<div class="log-item" style="color:var(--muted)">Sin log groups</div>'; return; }
+  c.innerHTML = groups.map(g => `
+    <div class="log-item" onclick="selectGroup('${g.logGroupName}', this)">
+      <span class="icon">📁</span>${g.logGroupName}
+    </div>`).join('');
+}
+
+async function selectGroup(name, el) {
+  cwSelectedGroup = name; cwSelectedStream = null;
+  document.querySelectorAll('#cwGroups .log-item').forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('cwStreams').innerHTML = '<div class="log-item" style="color:var(--muted)"><span class="spin"></span></div>';
+  document.getElementById('cwEvents').innerHTML = '<div style="color:var(--muted); padding:10px 0">← Selecciona un stream</div>';
+  document.getElementById('cw-group-new').value = name;
+  document.getElementById('btnNewStream').style.display = 'inline-block';
+  document.getElementById('btnNewEvent').style.display = 'none';
+  const { data } = await api('GET', '/api/logs/streams?group=' + encodeURIComponent(name));
+  const streams = data?.logStreams || [];
+  const c = document.getElementById('cwStreams');
+  if (!streams.length) { c.innerHTML = '<div class="log-item" style="color:var(--muted)">Sin streams (crea uno con ＋)</div>'; return; }
+  c.innerHTML = streams.map(s => `
+    <div class="log-item" onclick="selectStream('${s.logStreamName}', this)">
+      <span class="icon">📄</span>${s.logStreamName}
+    </div>`).join('');
+}
+
+async function selectStream(name, el) {
+  cwSelectedStream = name;
+  document.querySelectorAll('#cwStreams .log-item').forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('cw-ev-group').value = cwSelectedGroup;
+  document.getElementById('cw-ev-stream').value = name;
+  document.getElementById('btnNewEvent').style.display = 'inline-block';
+  document.getElementById('cwEvents').innerHTML = '<div style="color:var(--muted); padding:10px 0"><span class="spin"></span> Cargando eventos...</div>';
+  const { data } = await api('GET', `/api/logs/events?group=${encodeURIComponent(cwSelectedGroup)}&stream=${encodeURIComponent(name)}`);
+  const events = data?.events || [];
+  const c = document.getElementById('cwEvents');
+  if (!events.length) { c.innerHTML = '<div style="color:var(--muted); padding:10px 0">Sin eventos. Usa "＋ Enviar log" para agregar uno.</div>'; return; }
+  c.innerHTML = events.map(e => `
+    <div class="log-event">
+      <span class="log-ts">${new Date(e.timestamp).toISOString()}</span>
+      <span class="log-msg">${escapeHtml(e.message)}</span>
+    </div>`).join('');
+  c.scrollTop = c.scrollHeight;
+}
+
+function showStreamForm() {
+  document.getElementById('streamForm').style.display = 'block';
+  document.getElementById('cw-stream-new').focus();
+}
+
+function showEventForm() {
+  document.getElementById('eventForm').style.display = 'block';
+  document.getElementById('cw-ev-msg').focus();
+}
+
+async function createStream() {
+  const group = document.getElementById('cw-group-new').value;
+  const stream = document.getElementById('cw-stream-new').value.trim();
+  if (!stream) { toast('Ingresa un nombre para el stream', false); return; }
+  await api('POST', '/api/logs/streams', { group, stream });
+  toast('Stream creado ✓');
+  document.getElementById('streamForm').style.display = 'none';
+  document.getElementById('cw-stream-new').value = '';
+  await selectGroup(group, document.querySelector('#cwGroups .log-item.selected'));
+}
+
+async function sendEvent() {
+  const group = document.getElementById('cw-ev-group').value;
+  const stream = document.getElementById('cw-ev-stream').value;
+  const message = document.getElementById('cw-ev-msg').value.trim();
+  if (!message) { toast('Escribe un mensaje', false); return; }
+  await api('POST', '/api/logs/events', { group, stream, message });
+  toast('Log enviado ✓');
+  document.getElementById('eventForm').style.display = 'none';
+  document.getElementById('cw-ev-msg').value = '';
+  await selectStream(stream, document.querySelector('#cwStreams .log-item.selected'));
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function copyId(id) {
+  navigator.clipboard.writeText(id).then(() => toast('ID copiado: ' + id));
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadHealth();
+setInterval(loadHealth, 30000); // auto-refresh each 30s
+</script>
+</body>
+</html>
