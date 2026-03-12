@@ -1,0 +1,41 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: apigateway
+  cloud:
+    gateway:
+      routes:
+        - id: productos
+          uri: lb://productos-service
+          predicates:
+            - Path=/productos/**
+
+        - id: ordenes
+          uri: lb://ordenes-service
+          predicates:
+            - Path=/ordenes/**
+
+        - id: pagos
+          uri: lb://pagos-service
+          predicates:
+            - Path=/pagos/**
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://eureka-server:8761/eureka
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
